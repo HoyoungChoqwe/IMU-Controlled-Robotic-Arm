@@ -10,42 +10,13 @@
  * CCR is set directly in microsecond ticks (1 tick = 1us at 1MHz).
  */
 
+#include <hardware_declarations.h>
 #include <stdio.h>
 #include <BOARD.h>
 #include <Timers.h>
 #include <Pwm.h>
-
-// Servo timing constants (1MHz timer clock -> 1 tick = 1us)
-#define SERVO_PERIOD_TICKS  19999   // ARR for 50Hz: 1,000,000/50 - 1 = 19999
-#define SERVO_MIN_US        500     // 0.5ms pulse = 0 degrees   (270-deg version)
-#define SERVO_MAX_US        2500    // 2.5ms pulse = 270 degrees (270-deg version)
-#define SERVO_MAX_DEG       270.0f
-
-// Step size and delay per step for the sweep
-#define SWEEP_STEP_DEG      1       // 1 degree per step
-#define SWEEP_STEP_DELAY_MS 20      // 20ms per step (~5.4 sec for full 0-270 sweep)
-
-/*
- * Set servo angle by writing TIM4->CCR3 directly (PWM5 = TIM4_CH3).
- * angle: 0.0 to 180.0 degrees
- */
-static void servo_set_angle(float angle)
-{
-    if (angle < 0.0f)          angle = 0.0f;
-    if (angle > SERVO_MAX_DEG) angle = SERVO_MAX_DEG;
-    uint32_t ticks = (uint32_t)(SERVO_MIN_US + (angle / SERVO_MAX_DEG) * (SERVO_MAX_US - SERVO_MIN_US));
-    TIM4->CCR3 = ticks;
-}
-
-/*
- * Blocking millisecond delay using Timers_GetMilliSeconds().
- * Handles uint32_t wraparound correctly via unsigned subtraction.
- */
-static void delay_ms(uint32_t ms)
-{
-    uint32_t start = Timers_GetMilliSeconds();
-    while ((Timers_GetMilliSeconds() - start) < ms);
-}
+#include <servo.h>
+#include <delay.h>
 
 int main(void)
 {
@@ -70,24 +41,17 @@ int main(void)
     TIM4->ARR = SERVO_PERIOD_TICKS;
 
     // Start at 0 degrees
-    servo_set_angle(0.0f);
-    delay_ms(500);
+    servo_set_angle(SERVO_MIN_DEG);
+    delay_ms(500); //500ms delay
 
     printf("Starting sweep...\r\n");
 
-    float angle;
     while (1) {
         // Sweep 0 -> 270 degrees
-        for (angle = 0.0f; angle <= SERVO_MAX_DEG; angle += SWEEP_STEP_DEG) {
-            servo_set_angle(angle);
-            delay_ms(SWEEP_STEP_DELAY_MS);
-        }
+        servo_sweep(SERVO_MIN_DEG, SERVO_MAX_DEG);
 
         // Sweep 270 -> 0 degrees
-        for (angle = SERVO_MAX_DEG; angle >= 0.0f; angle -= SWEEP_STEP_DEG) {
-            servo_set_angle(angle);
-            delay_ms(SWEEP_STEP_DELAY_MS);
-        }
+        servo_sweep(SERVO_MAX_DEG, SERVO_MIN_DEG);
     }
 
     return 0;
