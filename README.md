@@ -19,7 +19,7 @@ Table-top robot arm with gripper controlled with a glove.
 
 <p>
 Install platformio cli:<br>
-MacOS: brew install platformio<br>
+https://docs.platformio.org/en/latest/core/index.html<br>
 </p>
 
 <p>
