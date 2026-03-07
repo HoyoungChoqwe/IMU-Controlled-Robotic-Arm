@@ -14,3 +14,15 @@ Software Engineer - Neil Karkhanis <br>
 <p>
 Table-top robot arm with gripper controlled with a glove.
 </p>
+
+### Dev Instructions:
+
+<p>
+Install platformio cli:<br>
+MacOS: brew install platformio<br>
+</p>
+
+<p>
+Build and run code:<br>
+pio run<br>
+</p>
