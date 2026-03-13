@@ -1,37 +1,47 @@
-//Servo control fuctions
-#pragma once
-
-#include <hardware_declarations.h>
-#include <Timers.h>
-#include <delay.h>
-
-/*
- * Set servo angle by writing TIM4->CCR3 directly (PWM5 = TIM4_CH3).
- * angle: 0.0 to 180.0 degrees
+/**
+ * @file    Servo.h
+ * @brief   Unified servo control for ECE167 robot arm.
+ *
+ * Pin assignments (UCSC Nucleo I/O Shield):
+ *   Gripper : Pin 55  PWM2  PA10  TIM1_CH3   TD8120  35-205 deg (hard limits)
+ *   Base    : Pin 57  PWM4  PB6   TIM4_CH1   TD8120  0-180 deg  (180-deg version)
+ *   Arm     : Pin 58  PWM5  PB8   TIM4_CH3   TD8120  0-180 deg  (primary)
+ *             Pin 56  PWM3  PA11  TIM1_CH4              (mirror, back-to-back mount)
  */
-static void servo_set_angle(float angle)
-{
-    if (angle < SERVO_MIN_DEG)          angle = SERVO_MIN_DEG;
-    if (angle > SERVO_MAX_DEG) angle = SERVO_MAX_DEG;
-    uint32_t ticks = (uint32_t)(SERVO_MIN_US + (angle / SERVO_MAX_DEG) * (SERVO_MAX_US - SERVO_MIN_US));
-    TIM4->CCR3 = ticks;
-}
 
-static void servo_sweep(float start_angle, float end_angle)
-{
-    float angle;
+#ifndef SERVO_H
+#define SERVO_H
 
-    if (start_angle <= end_angle) {
-        for (angle = start_angle; angle <= end_angle; angle += SWEEP_STEP_DEG) 
-        {
-            servo_set_angle(angle);
-            delay_ms(SWEEP_STEP_DELAY_MS);
-        }
-    } else {
-        for (angle = start_angle; angle >= end_angle; angle -= SWEEP_STEP_DEG) 
-        {
-            servo_set_angle(angle);
-            delay_ms(SWEEP_STEP_DELAY_MS);
-        }
-    }
-}
+/**
+ * @brief  Initialize PWM hardware and move all servos to 90 degrees.
+ *         Must be called after BOARD_Init() and Timers_Init().
+ */
+void Servo_Init(void);
+
+/**
+ * @brief  Set arm angle (0-180 degrees).
+ *         The mirrored servo is driven automatically.
+ */
+void Set_Arm(int deg);
+
+/**
+ * @brief  Set base angle (0-270 degrees).
+ */
+void Set_Base(int deg);
+
+/**
+ * @brief  Set gripper angle (35-205 degrees).
+ *         Prints error and does NOT move if deg is outside [35, 205].
+ */
+void Set_Gripper(int deg);
+
+/** @brief  Return current arm angle in degrees. */
+int Get_Arm(void);
+
+/** @brief  Return current base angle in degrees (0-180). */
+int Get_Base(void);
+
+/** @brief  Return current gripper angle in degrees. */
+int Get_Gripper(void);
+
+#endif /* SERVO_H */
