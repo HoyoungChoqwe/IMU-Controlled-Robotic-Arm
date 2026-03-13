@@ -7,7 +7,16 @@
 #include "Buttons.h"
 #include "Leds.h"
 #include "Servo.h"
+#include "FlexSensor.h"
 #include "robotCommon.h"
+
+//#define SERVO_TEST
+#define FLEX_TEST
+//#define IMU_TEST
+
+//show intro briefly
+#define INTRO_TIME 2000
+#ifdef SERVO_TEST
 
 #define STEP_DEG    5
 #define DISPLAY_REFRESH_MS 50
@@ -16,8 +25,6 @@ typedef enum { SEL_GRIPPER = 0, SEL_ARM, SEL_BASE, SEL_COUNT } Selection;
 
 static Selection selected = SEL_GRIPPER;
 
-//show intro briefly
-#define INTRO_TIME 2000
 
 //update display for test. show mode and angles
 static bool updating_indicator = true;
@@ -103,3 +110,60 @@ int main(void)
     }
     return 0;
 }
+
+#endif //SERVO_TEST
+
+#ifdef FLEX_TEST
+
+#define DISPLAY_REFRESH_MS 50
+
+//update display for test. show mode and angles
+static bool updating_indicator = true;
+static void update_display(void)
+{
+    char buf[80];
+    snprintf(buf, sizeof(buf),
+             "Flex Raw:%f\n"
+             "Curled  :%s\n"
+             "updating..%c\n",
+             FLEX_getReading(),
+             (FLEX_isFingerCurled()) ? "True" : "False",
+             updating_indicator ? '.' : ' ');
+    updating_indicator = !updating_indicator;
+    OLED_Clear(OLED_COLOR_BLACK);
+    OLED_DrawString(buf);
+    OLED_Update();
+}
+
+
+int main(void)
+{
+    BOARD_Init();
+    Timers_Init();
+    Buttons_Init();
+    OLED_Init();
+    LEDs_Init();
+    FLEX_Init();
+
+    printf("ECE167 FLEX test\r\n");
+    MAGIC_display_error_oled("ECE167 Final\nTest2\n",INTRO_TIME);
+
+    uint32_t last_display_ms = Timers_GetMilliSeconds();
+
+    while (1) {
+   
+        /* Refresh OLED at 20 Hz for more responsive feedback. */
+        uint32_t now = Timers_GetMilliSeconds();
+        if ((now - last_display_ms) >= DISPLAY_REFRESH_MS) {
+            last_display_ms = now;
+            update_display();
+        }
+
+        if(FLEX_isFingerCurled()) {
+            LEDs_Set(0b11111111);
+        } else {
+            LEDs_Set(0b00000000);
+        }
+    }
+}
+#endif //FLEX_TEST
