@@ -8,11 +8,12 @@
 #include "Leds.h"
 #include "Servo.h"
 #include "FlexSensor.h"
+#include "IMU.h"
 #include "robotCommon.h"
 
 //#define SERVO_TEST
-#define FLEX_TEST
-//#define IMU_TEST
+// #define FLEX_TEST
+#define IMU_TEST
 
 //show intro briefly
 #define INTRO_TIME 2000
@@ -167,3 +168,52 @@ int main(void)
     }
 }
 #endif //FLEX_TEST
+
+#ifdef IMU_TEST
+
+#define DISPLAY_REFRESH_MS 50
+
+//update display for test. show mode and angles
+static bool updating_indicator = true;
+static void update_display(void)
+{
+    char buf[80];
+    snprintf(buf, sizeof(buf),
+             "Roll :%fº\n"
+             "Pitch:%fº\n"
+             "updating..%c\n",
+             IMU_GetRollAngle(),
+             IMU_GetPitchAngle(),
+             updating_indicator ? '.' : ' ');
+    updating_indicator = !updating_indicator;
+    OLED_Clear(OLED_COLOR_BLACK);
+    OLED_DrawString(buf);
+    OLED_Update();
+}
+
+
+int main(void)
+{
+    BOARD_Init();
+    Timers_Init();
+    Buttons_Init();
+    OLED_Init();
+    LEDs_Init();
+    IMU_Init();
+
+    printf("ECE167 IMU test\r\n");
+    MAGIC_display_error_oled("ECE167 Final\nTest3\n",INTRO_TIME);
+
+    uint32_t last_display_ms = Timers_GetMilliSeconds();
+
+    while (1) {
+   
+        /* Refresh OLED at 20 Hz for more responsive feedback. */
+        uint32_t now = Timers_GetMilliSeconds();
+        if ((now - last_display_ms) >= DISPLAY_REFRESH_MS) {
+            last_display_ms = now;
+            update_display();
+        }
+    }
+}
+#endif //IMU_TEST
