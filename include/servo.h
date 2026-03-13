@@ -22,26 +22,26 @@ void Servo_Init(void);
  * @brief  Set arm angle (0-180 degrees).
  *         The mirrored servo is driven automatically.
  */
-void Set_Arm(int deg);
+void Set_Arm(float deg);
 
 /**
  * @brief  Set base angle (0-270 degrees).
  */
-void Set_Base(int deg);
+void Set_Base(float deg);
 
 /**
  * @brief  Set gripper angle (35-205 degrees).
  *         Prints error and does NOT move if deg is outside [35, 205].
  */
-void Set_Gripper(int deg);
+void Set_Gripper(float deg);
 
 /** @brief  Return current arm angle in degrees. */
-int Get_Arm(void);
+float Get_Arm(void);
 
 /** @brief  Return current base angle in degrees (0-180). */
-int Get_Base(void);
+float Get_Base(void);
 
 /** @brief  Return current gripper angle in degrees. */
-int Get_Gripper(void);
+float Get_Gripper(void);
 
 #endif /* SERVO_H */

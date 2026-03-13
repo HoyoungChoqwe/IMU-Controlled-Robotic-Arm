@@ -23,24 +23,22 @@
  */
 void Buttons_Init(void)
 {
-    // Enable pins PC4, PC5, PC6, and PD2 as inputs for buttons 1, 2, 3, and 4,
+    // Enable pins PC4, PC5, PC12, and PD2 as inputs for buttons 1, 2, 3, and 4,
     // respectively.
     //
     // Each of these pins is also accessible via pin headers.
     //
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-    /* Configure GPIO pins : PC4,5,6 */
-    GPIO_InitStruct.Pin = GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
+    /* Configure GPIO pins : PC4, PC5, PC12 */
+    GPIO_InitStruct.Pin = GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_12;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-    /*Configure GPIO pin : PD2 */
+    /* Configure GPIO pin : PD2 */
     GPIO_InitStruct.Pin = GPIO_PIN_2;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
     HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 }
 
