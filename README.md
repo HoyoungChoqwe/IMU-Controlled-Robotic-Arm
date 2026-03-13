@@ -23,6 +23,16 @@ https://docs.platformio.org/en/latest/core/index.html<br>
 </p>
 
 <p>
-Build and run code:<br>
+Build:<br>
 pio run<br>
+</p>
+
+<p>
+Clean:<br>
+pio run -t clean<br>
+</p>
+
+<p>
+Upload/Flash:<br>
+pio run -t upload<br>
 </p>
