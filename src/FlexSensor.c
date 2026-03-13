@@ -18,13 +18,12 @@ bool FLEX_isFingerCurled(void)
 {
     float reading = FLEX_getReading();
 
-    // if (!k_isCurled) {//if straight
-    //     k_isCurled = (FLEX_ADC_CLOSE > reading);//stays straight until goes below close thresh
-    // } else {//if curled
-    //     k_isCurled = (FLEX_ADC_OPEN < reading);//stays curled until goes above open thresh
-    // }
-    // return k_isCurled;
-    return (reading < FLEX_ADC_CLOSE);
+    if (!k_isCurled) {//if straight
+        k_isCurled = (FLEX_ADC_CLOSE > reading);//stays straight until goes below close thresh
+    } else {//if curled
+        k_isCurled = (FLEX_ADC_OPEN < reading);//stays curled until goes above open thresh
+    }
+    return k_isCurled;
 }
 
 float FLEX_getReading(void)
@@ -32,6 +31,7 @@ float FLEX_getReading(void)
     return ADC_Read(FLEX_ADC_CHANNEL);
 }
 
+//remove this eventually
 float map_flex_to_angle(uint16_t adc)
 {
     float ratio;
