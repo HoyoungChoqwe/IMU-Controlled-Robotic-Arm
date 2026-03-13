@@ -11,10 +11,12 @@
  * All four channels share the same 50 Hz period (TIM1 and TIM4 ARR = 19999).
  * Pulse width range: 500 us (0 deg) to 2500 us (max deg).
  */
-
+#include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <BOARD.h>
-#include <Pwm.h>
+#include "BOARD.h"
+#include "Pwm.h"
+#include "robotCommon.h"
 #include "Servo.h"
 
 /* 50 Hz: 1 MHz timer clock, ARR = 1,000,000/50 - 1 = 19999 */
@@ -43,15 +45,15 @@ static uint32_t angle_to_ticks(int deg, int max_deg)
 
 void Servo_Init(void)
 {
-    if (PWM_Init() == ERROR)        { printf("ERROR: PWM_Init\r\n");       while (1); }
+    if (PWM_Init() == ERROR)        { MAGIC_display_error_oled("ERROR: PWM_Init\r\n");/*printf("ERROR: PWM_Init\r\n");*/       while (1); }
     /* Gripper: PWM_2 = TIM1_CH3 = Pin 55 */
-    if (PWM_AddPin(PWM_2) == ERROR) { printf("ERROR: PWM_AddPin 2\r\n");   while (1); }
+    if (PWM_AddPin(PWM_2) == ERROR) { MAGIC_display_error_oled("ERROR: PWM_AddPin 2\r\n");/*printf("ERROR: PWM_AddPin 2\r\n");*/   while (1); }
     /* Arm mirror: PWM_3 = TIM1_CH4 = Pin 56 */
-    if (PWM_AddPin(PWM_3) == ERROR) { printf("ERROR: PWM_AddPin 3\r\n");   while (1); }
+    if (PWM_AddPin(PWM_3) == ERROR) { MAGIC_display_error_oled("ERROR: PWM_AddPin 3\r\n");/*printf("ERROR: PWM_AddPin 3\r\n");*/   while (1); }
     /* Base: PWM_4 = TIM4_CH1 = Pin 57 */
-    if (PWM_AddPin(PWM_4) == ERROR) { printf("ERROR: PWM_AddPin 4\r\n");   while (1); }
+    if (PWM_AddPin(PWM_4) == ERROR) { MAGIC_display_error_oled("ERROR: PWM_AddPin 4\r\n");/*printf("ERROR: PWM_AddPin 4\r\n");*/   while (1); }
     /* Arm primary: PWM_5 = TIM4_CH3 = Pin 58 */
-    if (PWM_AddPin(PWM_5) == ERROR) { printf("ERROR: PWM_AddPin 5\r\n");   while (1); }
+    if (PWM_AddPin(PWM_5) == ERROR) { MAGIC_display_error_oled("ERROR: PWM_AddPin 5\r\n");/*printf("ERROR: PWM_AddPin 5\r\n");*/   while (1); }
 
     /* Override to 50 Hz after PWM_AddPin (which defaults to 1 kHz) */
     TIM1->ARR = SERVO_PERIOD_TICKS;
@@ -65,11 +67,12 @@ void Servo_Init(void)
 
 void Set_Arm(int deg)
 {
-    if (deg < 0)            deg = 0;
-    if (deg > ARM_MAX_DEG)  deg = ARM_MAX_DEG;
-    arm_deg = deg;
+    if (deg < 0)            arm_deg = 0;
+    if (deg > ARM_MAX_DEG)  arm_deg = ARM_MAX_DEG;
+    else arm_deg = deg;
+    MAGIC_display_error_oled("ArmDeg");
 
-    uint32_t ticks        = angle_to_ticks(deg, ARM_MAX_DEG);
+    uint32_t ticks        = angle_to_ticks(arm_deg, ARM_MAX_DEG);
     uint32_t ticks_mirror = (SERVO_MIN_US + SERVO_MAX_US) - ticks;
 
     TIM4->CCR3 = ticks;         /* PWM_5: Pin 58 primary  */
@@ -78,23 +81,27 @@ void Set_Arm(int deg)
 
 void Set_Base(int deg)
 {
-    if (deg < 0)            deg = 0;
-    if (deg > BASE_MAX_DEG) deg = BASE_MAX_DEG;
-    base_deg = deg;
+    if (deg < 0)            base_deg = 0;
+    if (deg > BASE_MAX_DEG) base_deg = BASE_MAX_DEG;
+    else base_deg = deg;
+    MAGIC_display_error_oled("BaseDeg");
 
-    TIM4->CCR1 = angle_to_ticks(deg, BASE_MAX_DEG); /* PWM_4: Pin 57 */
+    TIM4->CCR1 = angle_to_ticks(base_deg, BASE_MAX_DEG); /* PWM_4: Pin 57 */
 }
 
 void Set_Gripper(int deg)
 {
-    if (deg < GRIP_MIN_DEG || deg > GRIP_MAX_DEG) {
-        printf("ERROR: Gripper angle %d out of range [%d, %d]\r\n",
-               deg, GRIP_MIN_DEG, GRIP_MAX_DEG);
-        return;
-    }
-    gripper_deg = deg;
+    // if (deg < GRIP_MIN_DEG || deg > GRIP_MAX_DEG) {
+    //     printf("ERROR: Gripper angle %d out of range [%d, %d]\r\n",
+    //            deg, GRIP_MIN_DEG, GRIP_MAX_DEG);
+    //     return;
+    // }
+    if (deg < GRIP_MIN_DEG) gripper_deg = GRIP_MIN_DEG;
+    if (deg > GRIP_MAX_DEG) gripper_deg = GRIP_MAX_DEG;
+    else gripper_deg = deg;
+    MAGIC_display_error_oled("GripperDeg");
     /* Map against full 270-deg physical range to preserve correct pulse width */
-    TIM1->CCR3 = angle_to_ticks(deg, GRIP_PHYSICAL_MAX_DEG); /* PWM_2: Pin 55 */
+    TIM1->CCR3 = angle_to_ticks(gripper_deg, GRIP_PHYSICAL_MAX_DEG); /* PWM_2: Pin 55 */
 }
 
 int Get_Arm(void)      { return arm_deg;     }
