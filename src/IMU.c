@@ -15,6 +15,14 @@
 #define RAD_TO_DEG 57.2957795f
 #define MIN_VECTOR_MAGNITUDE 0.0001f
 
+/* Steepness thresholds in degrees with hysteresis between adjacent levels. */
+#define LEVEL_0_TO_1_ENTER_DEG 15.0f
+#define LEVEL_1_TO_0_EXIT_DEG 8.0f
+#define LEVEL_1_TO_2_ENTER_DEG 30.0f
+#define LEVEL_2_TO_1_EXIT_DEG 23.0f
+#define LEVEL_2_TO_3_ENTER_DEG 45.0f
+#define LEVEL_3_TO_2_EXIT_DEG 38.0f
+
 /* Default neutral orientation used before the sensor baseline is captured. */
 #define DEFAULT_GRAVITY_VEC {0.0f, 0.0f, 1.0f}
 #define DEFAULT_ANGLE_DEG 0.0f
@@ -32,6 +40,8 @@ static Vec3 k_currentGravity = DEFAULT_GRAVITY_VEC;
 static Vec3 k_baselineGravity = DEFAULT_GRAVITY_VEC;
 static float k_baselineRollDeg = DEFAULT_ANGLE_DEG;
 static float k_baselinePitchDeg = DEFAULT_ANGLE_DEG;
+static int8_t k_rollRangeLevel = 0;
+static int8_t k_pitchRangeLevel = 0;
 static uint8_t k_isInitialized = FALSE;
 
 /* Add two 3-axis vectors component-by-component. */
@@ -66,8 +76,7 @@ static Vec3 vec3_normalize(Vec3 value, Vec3 fallback)
 {
     float magnitude = vec3_magnitude(value);
 
-    if (magnitude < MIN_VECTOR_MAGNITUDE)
-    {
+    if (magnitude < MIN_VECTOR_MAGNITUDE) {
         return fallback;
     }
 
@@ -119,8 +128,7 @@ static void update_gravity(void)
 {
     Vec3 rawAccel;
 
-    if (!k_isInitialized)
-    {
+    if (!k_isInitialized) {
         return;
     }
 
@@ -132,10 +140,86 @@ static void update_gravity(void)
     k_currentGravity = vec3_normalize(k_filteredAccel, k_baselineGravity);
 }
 
+/*
+ * Apply the requested hysteresis bands to one signed angle value.
+ * A sign change must re-enter through level +/-1 after crossing +/-15 degrees.
+ */
+static int8_t update_range_level(float angleDeg, int8_t currentLevel)
+{
+    if (currentLevel == 0) {
+        if (angleDeg > LEVEL_0_TO_1_ENTER_DEG) {
+            return 1;
+        }
+        if (angleDeg < -LEVEL_0_TO_1_ENTER_DEG) {
+            return -1;
+        }
+        return 0;
+    }
+
+    if (currentLevel > 0) {
+        if (angleDeg < -LEVEL_0_TO_1_ENTER_DEG) {
+            return -1;
+        }
+
+        if (currentLevel == 1) {
+            if (angleDeg < LEVEL_1_TO_0_EXIT_DEG) {
+                return 0;
+            }
+            if (angleDeg > LEVEL_1_TO_2_ENTER_DEG) {
+                return 2;
+            }
+            return 1;
+        }
+
+        if (currentLevel == 2) {
+            if (angleDeg < LEVEL_2_TO_1_EXIT_DEG) {
+                return 1;
+            }
+            if (angleDeg > LEVEL_2_TO_3_ENTER_DEG) {
+                return 3;
+            }
+            return 2;
+        }
+
+        if (angleDeg < LEVEL_3_TO_2_EXIT_DEG) {
+            return 2;
+        }
+        return 3;
+    }
+
+    if (angleDeg > LEVEL_0_TO_1_ENTER_DEG) {
+        return 1;
+    }
+
+    if (currentLevel == -1) {
+        if (angleDeg > -LEVEL_1_TO_0_EXIT_DEG) {
+            return 0;
+        }
+        if (angleDeg < -LEVEL_1_TO_2_ENTER_DEG) {
+            return -2;
+        }
+        return -1;
+    }
+
+    if (currentLevel == -2) {
+        if (angleDeg > -LEVEL_2_TO_1_EXIT_DEG) {
+            return -1;
+        }
+        if (angleDeg < -LEVEL_2_TO_3_ENTER_DEG) {
+            return -3;
+        }
+        return -2;
+    }
+
+    if (angleDeg > -LEVEL_3_TO_2_EXIT_DEG) {
+        return -2;
+    }
+    return -3;
+}
+
 void IMU_Init(void)
 {
-    if (BNO055_Init() != SUCCESS)
-    {
+    if (BNO055_Init() != SUCCESS) {
         MAGIC_display_error_oled("ERROR: BNO055_Init\r\n", ERROR_SHOW_TIME);
         printf("ERROR: BNO055_Init\r\n");
         while (1);
@@ -147,8 +231,7 @@ void IMU_Init(void)
 
 void IMU_ResetBaseline(void)
 {
-    if (!k_isInitialized)
-    {
+    if (!k_isInitialized) {
         return;
     }
 
@@ -157,12 +240,13 @@ void IMU_ResetBaseline(void)
     k_currentGravity = k_baselineGravity;
     k_baselinePitchDeg = compute_pitch_deg(k_baselineGravity);
     k_baselineRollDeg = compute_roll_deg(k_baselineGravity);
+    k_rollRangeLevel = 0;
+    k_pitchRangeLevel = 0;
 }
 
 float IMU_GetRollAngle(void)
 {
-    if (!k_isInitialized)
-    {
+    if (!k_isInitialized) {
         return DEFAULT_ANGLE_DEG;
     }
 
@@ -172,11 +256,36 @@ float IMU_GetRollAngle(void)
 
 float IMU_GetPitchAngle(void)
 {
-    if (!k_isInitialized)
-    {
+    if (!k_isInitialized) {
         return DEFAULT_ANGLE_DEG;
     }
 
     update_gravity();
     return compute_pitch_deg(k_currentGravity) - k_baselinePitchDeg;
+}
+
+int8_t IMU_GetRollRange(void)
+{
+    float rollAngleDeg;
+
+    if (!k_isInitialized) {
+        return 0;
+    }
+
+    rollAngleDeg = IMU_GetRollAngle();
+    k_rollRangeLevel = update_range_level(rollAngleDeg, k_rollRangeLevel);
+    return k_rollRangeLevel;
+}
+
+int8_t IMU_GetPitchRange(void)
+{
+    float pitchAngleDeg;
+
+    if (!k_isInitialized) {
+        return 0;
+    }
+
+    pitchAngleDeg = IMU_GetPitchAngle();
+    k_pitchRangeLevel = update_range_level(pitchAngleDeg, k_pitchRangeLevel);
+    return k_pitchRangeLevel;
 }

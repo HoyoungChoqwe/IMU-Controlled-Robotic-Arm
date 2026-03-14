@@ -1,3 +1,10 @@
+/**
+ * @file    test.c
+ * @brief   Conditionally defined main functions for running hardware tests.
+ *
+ * Testing functionality of APIs in ../include one at a time.
+ */
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -11,21 +18,32 @@
 #include "IMU.h"
 #include "robotCommon.h"
 
+
+/*
+ * Only uncomment one at a time.
+ * Defines which test runs.
+ */
 //#define SERVO_TEST
 // #define FLEX_TEST
 #define IMU_TEST
 
-//show intro briefly
-#define INTRO_TIME 2000
+/* Common defines */
+#define INTRO_TIME 2000//show intro 2sec
+#define DISPLAY_REFRESH_MS 50//refresh displays every 50ms
+
+/*
+ * BEGIN CONDITIONALLY DEFINED TEST CODE MAINS
+ * ----
+ */
+
+/* Controls Joints individually manually with buttons on periph. shield */
 #ifdef SERVO_TEST
 
 #define STEP_DEG    5
-#define DISPLAY_REFRESH_MS 50
 
 typedef enum { SEL_GRIPPER = 0, SEL_ARM, SEL_BASE, SEL_COUNT } Selection;
 
 static Selection selected = SEL_GRIPPER;
-
 
 //update display for test. show mode and angles
 static bool updating_indicator = true;
@@ -73,7 +91,7 @@ int main(void)
 
         /* BTN2: +5 degrees on selected servo */
         if (events & BUTTON_EVENT_2DOWN) {
-            LEDs_Set(0b00000011);
+            LEDs_Set(0b00110000);
             switch (selected) {
                 case SEL_GRIPPER: Set_Gripper(Get_Gripper() + STEP_DEG); break;
                 case SEL_ARM:     Set_Arm(Get_Arm()     + STEP_DEG); break;
@@ -95,7 +113,7 @@ int main(void)
 
         /* BTN4: reset all to 90 degrees */
         if (events & BUTTON_EVENT_4DOWN) {
-            LEDs_Set(0b00110000);
+            LEDs_Set(0b00000011);
             Set_Arm(90);
             Set_Base(90);
             Set_Gripper(90);
@@ -107,16 +125,14 @@ int main(void)
             last_display_ms = now;
             update_display();
         }
-        // update_display();
     }
     return 0;
 }
 
 #endif //SERVO_TEST
 
+/* Displays Flex Sensor reading and finger curled state */
 #ifdef FLEX_TEST
-
-#define DISPLAY_REFRESH_MS 50
 
 //update display for test. show mode and angles
 static bool updating_indicator = true;
@@ -161,29 +177,37 @@ int main(void)
         }
 
         if(FLEX_isFingerCurled()) {
-            LEDs_Set(0b11111111);
+            LEDs_Set(0b11111111);//all on
         } else {
-            LEDs_Set(0b00000000);
+            LEDs_Set(0b00000000);//all off
         }
     }
 }
 #endif //FLEX_TEST
 
+/* Displays roll angle and range, pitch angle and range, pressing button resets baseline */
 #ifdef IMU_TEST
 
-#define DISPLAY_REFRESH_MS 50
+#define RESET_MSG_DURATION 500
 
 //update display for test. show mode and angles
 static bool updating_indicator = true;
 static void update_display(void)
 {
     char buf[80];
+    int rollDeg = (int) IMU_GetRollAngle();//cast to int to remove decimal
+    int pitchDeg = (int) IMU_GetPitchAngle();
+    int rollRange = IMU_GetRollRange();
+    int pitchRange = IMU_GetPitchRange();
+
     snprintf(buf, sizeof(buf),
-             "Roll :%fº\n"
-             "Pitch:%fº\n"
+             "Roll :%dº\nspd:%d\n"
+             "Pitch:%dº\nspd:%d\n"
              "updating..%c\n",
-             IMU_GetRollAngle(),
-             IMU_GetPitchAngle(),
+             rollDeg,
+             rollRange,
+             pitchDeg,
+             pitchRange,
              updating_indicator ? '.' : ' ');
     updating_indicator = !updating_indicator;
     OLED_Clear(OLED_COLOR_BLACK);
@@ -207,6 +231,14 @@ int main(void)
     uint32_t last_display_ms = Timers_GetMilliSeconds();
 
     while (1) {
+
+        uint8_t events = Buttons_CheckEvents();
+
+        /* Button1 resets neutral position */
+        if (events & BUTTON_EVENT_1DOWN) {
+            IMU_ResetBaseline();
+            MAGIC_display_error_oled("BASELINE RESET\n",RESET_MSG_DURATION);
+        }
    
         /* Refresh OLED at 20 Hz for more responsive feedback. */
         uint32_t now = Timers_GetMilliSeconds();
