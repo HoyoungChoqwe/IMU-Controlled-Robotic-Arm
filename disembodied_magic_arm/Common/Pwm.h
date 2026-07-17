@@ -33,6 +33,7 @@ extern const PWM PWM_2;
 extern const PWM PWM_3;
 extern const PWM PWM_4;
 extern const PWM PWM_5;
+extern const PWM PWM_6;
 
 /**
  * @Function PWM_Init(void)
@@ -45,7 +46,7 @@ char PWM_Init(void);
 
 /**
  * @Function PWM_SetFrequency(unsigned int NewFrequency)
- * @param NewFrequency - new frequency to set. must be between 100 hz and 100 khz
+ * @param NewFrequency - new frequency to set. must be between 50 hz and 100 khz
  * @return SUCCESS OR ERROR
  * @brief  Changes the frequency of the PWM system.
  * @note  Behavior of PWM channels during Frequency change is undocumented

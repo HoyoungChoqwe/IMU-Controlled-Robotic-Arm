@@ -48,6 +48,15 @@
  */
 int8_t BNO055_Init(void);
 
+/** BNO055_InitNDOF()
+ *
+ * Initializes the BNO055 in fused orientation mode.
+ * Heading, roll, and pitch outputs become available in degrees.
+ *
+ * @return  (int8_t)    [SUCCESS, ERROR]
+ */
+int8_t BNO055_InitNDOF(void);
+
 /** BNO055_ReadAccelX()
  *
  * Reads sensor axis as given by name.
@@ -128,6 +137,38 @@ int BNO055_ReadMagZ(void);
  * @return  (int)   Returns raw sensor reading as an int.
  */
 int BNO055_ReadTemp(void);
+
+/** BNO055_ReadHeadingDegrees()
+ *
+ * Reads fused heading in degrees.
+ *
+ * @return  (float) Returns heading in degrees.
+ */
+float BNO055_ReadHeadingDegrees(void);
+
+/** BNO055_ReadRollDegrees()
+ *
+ * Reads fused roll in degrees.
+ *
+ * @return  (float) Returns roll in degrees.
+ */
+float BNO055_ReadRollDegrees(void);
+
+/** BNO055_ReadPitchDegrees()
+ *
+ * Reads fused pitch in degrees.
+ *
+ * @return  (float) Returns pitch in degrees.
+ */
+float BNO055_ReadPitchDegrees(void);
+
+/** BNO055_ReadCalibStat()
+ *
+ * Reads the BNO055 calibration status register.
+ *
+ * @return  (uint8_t) Returns the raw calibration status register value.
+ */
+uint8_t BNO055_ReadCalibStat(void);
 
 
 #endif  /*  BNO055_H    */

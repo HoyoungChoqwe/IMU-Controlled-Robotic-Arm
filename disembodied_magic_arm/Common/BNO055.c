@@ -244,6 +244,8 @@ static enum
 
 /*  PROTOTYPES  */
 void DelayMicros(uint32_t microsec);
+static int8_t BNO055_InitMode(uint8_t operationMode);
+static float BNO055_ReadEulerDegrees(uint8_t registerAddress);
 
 
 /*  FUNCTIONS   */
@@ -257,6 +259,22 @@ void DelayMicros(uint32_t microsec);
  * @return  (int8_t)    [SUCCESS, ERROR]
  */
 int8_t BNO055_Init(void)
+{
+    return BNO055_InitMode(OPERATION_MODE_AMG);
+}
+
+/** BNO055_InitNDOF()
+ *
+ * Initializes the BNO055 in fused orientation mode.
+ *
+ * @return  (int8_t)    [SUCCESS, ERROR]
+ */
+int8_t BNO055_InitNDOF(void)
+{
+    return BNO055_InitMode(OPERATION_MODE_NDOF);
+}
+
+static int8_t BNO055_InitMode(uint8_t operationMode)
 {
     BOARD_Init(); // Initialize board and printf functionality.
     Timers_Init(); // Initialize timer module for delay functions.
@@ -331,15 +349,14 @@ int8_t BNO055_Init(void)
         BNO055_UNIT_SEL_ADDR,
         UNITS_PARAM
     );
-    // Set operation mode to AMG.
+    // Set the requested operation mode.
     byteReturn = I2C_WriteReg(
         BNO055_ADDRESS_A,
         BNO055_OPR_MODE_ADDR,
-        OPERATION_MODE_AMG
+        operationMode
     );
     DelayMicros(30000);
     return byteReturn;
-
 }
 
 /** BNO055_ReadAccelX()
@@ -452,12 +469,61 @@ int BNO055_ReadTemp(void)
     return (I2C_ReadRegister(BNO055_ADDRESS_A, BNO055_TEMP_ADDR));
 }
 
+/** BNO055_ReadHeadingDegrees()
+ *
+ * Reads fused heading in degrees.
+ *
+ * @return  (float) Returns heading in degrees.
+ */
+float BNO055_ReadHeadingDegrees(void)
+{
+    return BNO055_ReadEulerDegrees(BNO055_EULER_H_LSB_ADDR);
+}
+
+/** BNO055_ReadRollDegrees()
+ *
+ * Reads fused roll in degrees.
+ *
+ * @return  (float) Returns roll in degrees.
+ */
+float BNO055_ReadRollDegrees(void)
+{
+    return BNO055_ReadEulerDegrees(BNO055_EULER_R_LSB_ADDR);
+}
+
+/** BNO055_ReadPitchDegrees()
+ *
+ * Reads fused pitch in degrees.
+ *
+ * @return  (float) Returns pitch in degrees.
+ */
+float BNO055_ReadPitchDegrees(void)
+{
+    return BNO055_ReadEulerDegrees(BNO055_EULER_P_LSB_ADDR);
+}
+
+/** BNO055_ReadCalibStat()
+ *
+ * Reads the raw BNO055 calibration status register.
+ *
+ * @return  (uint8_t) Returns the raw calibration status register value.
+ */
+uint8_t BNO055_ReadCalibStat(void)
+{
+    return I2C_ReadRegister(BNO055_ADDRESS_A, BNO055_CALIB_STAT_ADDR);
+}
+
 
 /*  PRIVATE FUNCTIONS   */
 void DelayMicros(uint32_t microsec)
 {
     uint32_t curr_us = Timers_GetMicroSeconds();
     while ((Timers_GetMicroSeconds() - curr_us) < microsec);
+}
+
+static float BNO055_ReadEulerDegrees(uint8_t registerAddress)
+{
+    return ((float) I2C_ReadInt(BNO055_ADDRESS_A, registerAddress, 0)) / 16.0f;
 }
 
 
@@ -526,4 +592,3 @@ int main(void)
 
 
 #endif  /*  BNO055_TEST */
-

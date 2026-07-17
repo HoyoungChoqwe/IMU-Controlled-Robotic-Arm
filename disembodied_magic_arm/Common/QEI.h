@@ -95,5 +95,8 @@ int QEI_GetPosition(void);
 */
 void QEI_ResetPosition(); 
 
+void QEI_IRQ(void);
+
+
 #endif	/* QEI_H */
 

@@ -28,7 +28,7 @@
 #define SUCCESS ((int8_t) 1)
 #endif
 
-#define NUM_CHANNELS 6 // number of pwm possible channels
+#define NUM_CHANNELS 7 // number of pwm possible channels
 
 // User-level PWM channels for inits/updating duty cycle etc...
 const PWM PWM_0 = {&htim1, TIM_CHANNEL_1, 0x1};
@@ -37,6 +37,7 @@ const PWM PWM_2 = {&htim1, TIM_CHANNEL_3, 0x4};
 const PWM PWM_3 = {&htim1, TIM_CHANNEL_4, 0x8};
 const PWM PWM_4 = {&htim4, TIM_CHANNEL_1, 0x10};
 const PWM PWM_5 = {&htim4, TIM_CHANNEL_3, 0x20};
+const PWM PWM_6 = {&htim3, TIM_CHANNEL_4, 0x40};
 
 static unsigned int pwm_freq = 1000; // [1 khz] default frequency 
 static uint32_t duty_cycles[NUM_CHANNELS]; // to store the duty cycles of each channel
@@ -167,6 +168,33 @@ char PWM_Init(void) {
         {
             return ERROR;
         }
+
+        // init TIM3
+        htim3.Instance = TIM3;
+        htim3.Init.Prescaler = system_clock_freq - 1; // setting prescaler for 1 Mhz timer clock
+        htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+        htim3.Init.Period = 999; // deafault frequecy of 1 khz, changed by modifying ARRx register
+        htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+        htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+        if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+        {
+            return ERROR;
+        }
+        sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+        if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+        {
+            return ERROR;
+        }
+        if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+        {
+            return ERROR;
+        }
+        sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+        sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+        if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+        {
+            return ERROR;
+        }
         init_status = TRUE;
     }
     return SUCCESS;
@@ -207,7 +235,7 @@ char PWM_AddPin(PWM PWM_x) {
 
 /**
  * @Function PWM_SetFrequency(unsigned int NewFrequency)
- * @param NewFrequency - new frequency to set. must be between 100 hz and 100 khz
+ * @param NewFrequency - new frequency to set. must be between 50 hz and 100 khz
  * @return SUCCESS OR ERROR
  * @brief  Changes the frequency of the PWM system.
  * @note  Behavior of PWM channels during Frequency change is undocumented
@@ -217,11 +245,11 @@ char PWM_SetFrequency(unsigned int NewFrequency) {
         printf("ERROR: PWM module has not yet been initialized!\r\n");
         return ERROR;
     }
-    if ((NewFrequency < 100) || (NewFrequency > 100000)) { // if requested frequency is out of bounds
+    if ((NewFrequency < 50) || (NewFrequency > 100000)) { // if requested frequency is out of bounds
         return ERROR;
     }
     
-    TIM1->ARR = TIM4->ARR = (uint32_t)(1000000.0/NewFrequency) - 1; // set auto-reload registers (ARR) accordingly (1 Mhz timer)
+    TIM1->ARR = TIM3->ARR = TIM4->ARR = (uint32_t)(1000000.0/NewFrequency) - 1; // set auto-reload registers (ARR) accordingly (1 Mhz timer)
     pwm_freq = NewFrequency;
 
     // update to preserve duty cycle after frequency change
@@ -246,6 +274,9 @@ char PWM_SetFrequency(unsigned int NewFrequency) {
                     break;
                 case 5:
                     PWM_SetDutyCycle(PWM_5, duty_cycles[i]);
+                    break;
+                case 6:
+                    PWM_SetDutyCycle(PWM_6, duty_cycles[i]);
                     break;
             }
         }
@@ -308,6 +339,10 @@ char PWM_SetDutyCycle(PWM PWM_x, unsigned int Duty) {
         case 0x20: // PWM_5
             TIM4->CCR3 = (uint32_t)((Duty/100.0)*(TIM1->ARR));
             duty_cycles[5] = Duty;
+            break;
+        case 0x40: // PWM_6
+            TIM3->CCR4 = (uint32_t)((Duty/100.0)*(TIM3->ARR));
+            duty_cycles[6] = Duty;
             break;
     }
 
@@ -374,11 +409,14 @@ char PWM_End(void) {
     HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_4);
     HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_1);
     HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_3);
+    HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_4);
 
     //deinitialize timer peripherals
     HAL_TIM_PWM_DeInit(&htim1);
+    HAL_TIM_PWM_DeInit(&htim3);
     HAL_TIM_PWM_DeInit(&htim4);
     HAL_TIM_Base_DeInit(&htim1);
+    HAL_TIM_Base_DeInit(&htim3);
     HAL_TIM_Base_DeInit(&htim4);
 
     return SUCCESS;
